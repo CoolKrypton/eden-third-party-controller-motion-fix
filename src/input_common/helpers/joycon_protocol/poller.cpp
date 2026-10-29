@@ -4,10 +4,28 @@
 // SPDX-FileCopyrightText: Copyright 2022 yuzu Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cmath>
 #include <vector>
 #include "input_common/helpers/joycon_protocol/poller.h"
 
 namespace InputCommon::Joycon {
+
+namespace {
+// Values used by Nintendo when the controller reports no usable calibration.
+constexpr f32 DefaultAccelerometerScale = 16384.0f; // 0x4000
+constexpr f32 DefaultGyroScale = 15271.0f;          // 0x3be7
+
+/// Returns scale - offset, clamped to a usable range. Third party devices frequently answer
+/// the calibration spi reads with 0xFF on every byte, which makes both fields collapse to the
+/// same value and turns every conversion into a division by zero.
+f32 GetCalibrationDivisor(const MotionSensorCalibration& cal, f32 default_scale) {
+    const f32 divisor = static_cast<f32>(cal.scale) - static_cast<f32>(cal.offset);
+    if (!std::isfinite(divisor) || std::abs(divisor) < 1.0f) {
+        return default_scale;
+    }
+    return divisor;
+}
+} // Anonymous namespace
 
 JoyconPoller::JoyconPoller(ControllerType device_type_, JoyStickCalibration left_stick_calibration_,
                            JoyStickCalibration right_stick_calibration_,
@@ -312,7 +330,9 @@ std::pair<f32, f32> JoyconPoller::GetPassiveAxisValue(PassivePadStick raw_value)
 
 f32 JoyconPoller::GetAccelerometerValue(s16 raw, const MotionSensorCalibration& cal,
                                         AccelerometerSensitivity sensitivity) const {
-    const f32 value = raw * (1.0f / (cal.scale - cal.offset)) * 4;
+    // Never divide by a degenerate calibration, it would poison every sample with inf/nan.
+    const f32 divisor = GetCalibrationDivisor(cal, DefaultAccelerometerScale);
+    const f32 value = raw * (1.0f / divisor) * 4;
     switch (sensitivity) {
     case Joycon::AccelerometerSensitivity::G2:
         return value / 4.0f;
@@ -328,7 +348,8 @@ f32 JoyconPoller::GetAccelerometerValue(s16 raw, const MotionSensorCalibration& 
 
 f32 JoyconPoller::GetGyroValue(s16 raw, const MotionSensorCalibration& cal,
                                GyroSensitivity sensitivity) const {
-    const f32 value = (raw - cal.offset) * (936.0f / (cal.scale - cal.offset)) / 360.0f;
+    const f32 divisor = GetCalibrationDivisor(cal, DefaultGyroScale);
+    const f32 value = (raw - cal.offset) * (936.0f / divisor) / 360.0f;
     switch (sensitivity) {
     case Joycon::GyroSensitivity::DPS250:
         return value / 8.0f;

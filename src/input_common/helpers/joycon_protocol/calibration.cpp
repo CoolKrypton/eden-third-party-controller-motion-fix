@@ -194,10 +194,22 @@ void CalibrationProtocol::ValidateCalibration(MotionCalibration& calibration) {
     for (auto& sensor : calibration.accelerometer) {
         sensor.scale = ValidateValue(sensor.scale, DefaultAccelerometerScale);
         sensor.offset = ValidateValue(sensor.offset, DefaultOffset);
+        // Motion is converted with (raw - offset) / (scale - offset). Controllers that leave
+        // the calibration region of their spi flash unprogrammed report 0xFFFF on every field,
+        // which survives the checks above and results in a division by zero. Fall back to the
+        // default scale whenever the pair is degenerate.
+        if (sensor.scale == sensor.offset) {
+            sensor.scale = DefaultAccelerometerScale;
+            sensor.offset = DefaultOffset;
+        }
     }
     for (auto& sensor : calibration.gyro) {
         sensor.scale = ValidateValue(sensor.scale, DefaultGyroScale);
         sensor.offset = ValidateValue(sensor.offset, DefaultOffset);
+        if (sensor.scale == sensor.offset) {
+            sensor.scale = DefaultGyroScale;
+            sensor.offset = DefaultOffset;
+        }
     }
 }
 
@@ -216,6 +228,10 @@ s16 CalibrationProtocol::ValidateValue(s16 value, s16 default_value) const {
         return default_value;
     }
     if (value == 0xFFF) {
+        return default_value;
+    }
+    // Unprogrammed spi flash reads back as 0xFFFF, which is -1 as a signed 16 bit value.
+    if (value == -1) {
         return default_value;
     }
     return value;
