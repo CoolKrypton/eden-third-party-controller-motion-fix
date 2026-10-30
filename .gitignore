@@ -74,6 +74,7 @@ externals/generated
 # Build logs produced by tools/build-mingw*.sh
 build-*.log*
 
-# Release packages produced locally (upload them as GitHub Release assets
-# instead). Named "release/" because "dist/" is a real, tracked project dir.
-release/
+# Release archives are large; upload them as GitHub Release assets instead of
+# committing them. The scripts and docs in release/ are tracked on purpose.
+# Named "release/" because "dist/" is a real, tracked project dir.
+release/*.zip
