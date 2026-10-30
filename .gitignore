@@ -67,3 +67,13 @@ vulkansdk*.exe
 
 # Build-time generated external sources
 externals/generated
+
+# WorkBuddy session data (project local, not part of the source tree)
+.workbuddy/
+
+# Build logs produced by tools/build-mingw*.sh
+build-*.log*
+
+# Release packages produced locally (upload them as GitHub Release assets
+# instead). Named "release/" because "dist/" is a real, tracked project dir.
+release/

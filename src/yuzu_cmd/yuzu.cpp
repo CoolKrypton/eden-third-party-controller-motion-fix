@@ -15,6 +15,14 @@
 #include <emscripten.h>
 #endif
 #define SDL_MAIN_USE_CALLBACKS 1
+#if defined(_WIN32) && !defined(SDL_MAIN_HANDLED)
+// SDL3's SDL_main_impl.h generates this very WinMain on Windows. Declare it up
+// front so GCC does not complain about a definition without a previous
+// declaration, which Eden promotes to an error through -Werror=missing-declarations.
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR szCmdLine, int sw);
+#endif
 #include <SDL3/SDL_main.h>
 
 #include <fmt/ostream.h>

@@ -32,6 +32,17 @@ if (MINGW OR LINUX OR APPLE)
     set(LIBUSB_PREFIX "${libusb_BINARY_DIR}")
     set(LIBUSB_SRC_DIR "${libusb_SOURCE_DIR}")
 
+    # `configure` is executed through MSYS sh, and it builds its list of
+    # auxiliary-file directories by splitting $srcdir on PATH_SEPARATOR, which
+    # is ':'. A Windows drive path such as F:/... is torn in half by that split,
+    # so configure can never find config.guess/config.sub/ltmain.sh and aborts
+    # with "cannot find required auxiliary files". Hand the shell an MSYS style
+    # path; every other variable keeps the native form.
+    string(REPLACE ":/" "/" LIBUSB_SH_SRC_DIR "${libusb_SOURCE_DIR}")
+    if (NOT LIBUSB_SH_SRC_DIR MATCHES "^/")
+        string(PREPEND LIBUSB_SH_SRC_DIR "/")
+    endif()
+
     # Workarounds for MSYS/MinGW
     if (MSYS)
         # CMake on Windows passes `C:/`, but we need `/C/` or `/c/` to use `configure`
@@ -78,9 +89,9 @@ if (MINGW OR LINUX OR APPLE)
                 CC="${CMAKE_C_COMPILER}"
                 CXX="${CMAKE_CXX_COMPILER}"
                 CFLAGS="${LIBUSB_CFLAGS}"
-            sh "${LIBUSB_CONFIGURE}"
+            sh "${LIBUSB_SH_SRC_DIR}/configure"
                 ${LIBUSB_CONFIGURE_ARGS}
-                --srcdir="${LIBUSB_SRC_DIR}"
+                --srcdir="${LIBUSB_SH_SRC_DIR}"
         WORKING_DIRECTORY
             "${LIBUSB_PREFIX}"
     )
